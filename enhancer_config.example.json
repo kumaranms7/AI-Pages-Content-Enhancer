@@ -1,0 +1,10 @@
+{
+  "folder": "C:/path/to/your/site/pages",
+  "file_type": "Both",
+  "site_url": "https://example.com/",
+  "site_context": "Short description of the business, its services, and its service area.",
+  "model_label": "Claude Sonnet 4.6 (recommended)",
+  "effort_label": "Balanced (recommended)",
+  "remember_key": false,
+  "api_key": ""
+}

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Page Content Enhancer</title>
+<!-- Statically-compiled Tailwind output (build/input.css -> webui/styles.css via the
+     Tailwind CLI - see build/README.md). No runtime JIT compiler, no MutationObserver
+     re-scanning the DOM on every update, no network dependency at all. -->
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .font-mono-ui { font-family: 'Consolas', 'Cascadia Mono', monospace; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: #334155; }
+  input, select, textarea { outline: none; }
+  .gradient-btn { background: linear-gradient(135deg, #7C3AED, #4F46E5); transition: all .18s ease; }
+  .gradient-btn:hover:not(:disabled) { box-shadow: 0 12px 24px -8px rgba(124,58,237,.55); transform: translateY(-1px); }
+  .gradient-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+  .progress-fill { background: linear-gradient(90deg, #7C3AED, #06B6D4); transition: width .35s ease; }
+  .row-fade-in { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-backdrop { backdrop-filter: blur(4px); }
+</style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-slate-50 flex text-slate-900">
+
+  <!-- ============================== SIDEBAR ============================== -->
+  <aside class="sidebar w-[300px] shrink-0 h-full overflow-y-auto bg-gradient-to-b from-slate-800 to-slate-700 flex flex-col">
+    <div class="px-6 pt-6 pb-2 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primaryFrom to-primaryTo flex items-center justify-center shadow-lg shadow-violet-900/40 shrink-0">
+        <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l1.6 4.8L18 9.5l-4.4 1.7L12 16l-1.6-4.8L6 9.5l4.4-1.7L12 3z"/>
+          <path d="M19 14l.6 1.8L21.5 16.5l-1.9.7L19 19l-.6-1.8-1.9-.7 1.9-.7L19 14z"/>
+        </svg>
+      </div>
+      <div class="text-white font-bold leading-tight text-[15px]">AI Page<br>Content Enhancer</div>
+    </div>
+
+    <div class="px-6 flex-1 mt-2">
+      <!-- Source -->
+      <div class="flex items-center gap-2 mt-4 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+        <span class="text-[11px] font-bold tracking-wider text-violet-400 uppercase">Source</span>
+      </div>
+      <label class="text-xs text-slate-400">Folder to scan</label>
+      <div class="flex gap-2 mt-1.5 mb-3">
+        <input id="folderInput" type="text" placeholder="Select folder path..."
+               class="flex-1 min-w-0 rounded-lg bg-white text-slate-900 text-sm px-3 py-2 placeholder:text-slate-400">
+        <button id="browseBtn" class="px-3 rounded-lg bg-primaryTo text-white text-sm font-medium hover:bg-indigo-500 transition shrink-0">Browse</button>
+      </div>
+      <label class="text-xs text-slate-400">File types</label>
+      <select id="fileTypeSelect" class="w-full mt-1.5 mb-4 rounded-lg bg-white text-slate-900 text-sm px-3 py-2">
+        <option value="PHP">PHP</option><option value="HTML">HTML</option><option value="Both" selected>Both</option>
+      </select>
+
+      <!-- Site details -->
+      <div class="flex items-center gap-2 mt-4 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+        <span class="text-[11px] font-bold tracking-wider text-violet-400 uppercase">Site Details</span>
+      </div>
+      <label class="text-xs text-slate-400">Site URL</label>
+      <input id="siteUrlInput" type="text" placeholder="https://yourdomain.com"
+             class="w-full mt-1.5 mb-3 rounded-lg bg-white text-slate-900 text-sm px-3 py-2 placeholder:text-slate-400">
+      <label class="text-xs text-slate-400">Site context (what the site/business is about)</label>
+      <textarea id="siteContextInput" rows="3"
+                class="w-full mt-1.5 mb-4 rounded-lg bg-white text-slate-900 text-sm px-3 py-2 resize-none placeholder:text-slate-400"
+                placeholder="e.g. Cybersecurity firm offering penetration testing services..."></textarea>
+
+      <!-- Claude API -->
+      <div class="flex items-center gap-2 mt-4 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+        <span class="text-[11px] font-bold tracking-wider text-violet-400 uppercase">Claude API</span>
+      </div>
+      <label class="text-xs text-slate-400">API key</label>
+      <div class="flex gap-2 mt-1.5 mb-2">
+        <input id="apiKeyInput" type="password" placeholder="sk-ant-..."
+               class="flex-1 min-w-0 rounded-lg bg-white text-slate-900 text-sm px-3 py-2 placeholder:text-slate-400">
+        <button id="toggleKeyBtn" class="px-3 rounded-lg bg-black/20 hover:bg-black/30 text-slate-200 shrink-0" title="Show/hide key">
+          <svg id="eyeIcon" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <label class="flex items-center gap-2 text-xs text-slate-400 mb-4 cursor-pointer">
+        <input id="rememberKeyCheck" type="checkbox" class="rounded accent-primaryTo">
+        Remember key on this device (plain text)
+      </label>
+
+      <!-- Claude Model -->
+      <div class="flex items-center gap-2 mt-4 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+        <span class="text-[11px] font-bold tracking-wider text-violet-400 uppercase">Claude Model</span>
+      </div>
+      <select id="modelSelect" class="w-full mb-4 rounded-lg bg-white text-slate-900 text-sm px-3 py-2">
+        <option value="Claude Sonnet 4.6 (recommended)" selected>Claude Sonnet 4.6 (recommended)</option>
+        <option value="Claude Opus 4.8 (most capable)">Claude Opus 4.8 (most capable)</option>
+        <option value="Claude Haiku 4.5 (fastest / cheapest)">Claude Haiku 4.5 (fastest / cheapest)</option>
+      </select>
+
+      <!-- Rewrite Quality -->
+      <div class="flex items-center gap-2 mt-4 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+        <span class="text-[11px] font-bold tracking-wider text-violet-400 uppercase">Rewrite Quality</span>
+      </div>
+      <select id="effortSelect" class="w-full mb-4 rounded-lg bg-white text-slate-900 text-sm px-3 py-2">
+        <option value="Faster / cheaper">Faster / cheaper</option>
+        <option value="Balanced (recommended)" selected>Balanced (recommended)</option>
+        <option value="Highest quality">Highest quality</option>
+      </select>
+    </div>
+
+    <div class="p-4 mt-auto">
+      <div class="rounded-xl bg-slate-600/60 border border-slate-500 p-4">
+        <div class="text-white text-sm font-bold flex items-center gap-1.5">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-violet-300" fill="currentColor"><path d="M12 2l1.8 5.4L19 9.2l-5.2 2L12 16.6l-1.8-5.4L5 9.2l5.2-1.8L12 2z"/></svg>
+          Premium AI Power
+        </div>
+        <div id="modelBadgeSidebar" class="text-slate-400 text-xs mt-1">Model: Claude Sonnet 4.6 (recommended)</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================== MAIN ============================== -->
+  <div class="flex-1 h-full flex flex-col overflow-hidden min-w-0">
+
+    <!-- Header -->
+    <header class="h-[72px] shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+      <div>
+        <h1 class="text-xl font-bold text-slate-900 leading-tight">AI Page Content Enhancer</h1>
+        <p class="text-xs text-slate-500">Rewrites on-page content for SEO - layout & markup untouched</p>
+      </div>
+      <div class="flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-200 pl-3 pr-1.5 py-1.5 shrink-0">
+        <span id="modelBadgeHeader" class="text-primaryTo text-sm font-bold">Model: Claude Sonnet 4.6</span>
+        <span class="text-[10px] font-bold text-white bg-success rounded-full px-2 py-0.5">Recommended</span>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <main class="flex-1 overflow-y-auto p-6 space-y-5">
+
+      <!-- Process card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <button id="startBtn" class="gradient-btn px-5 py-3 rounded-xl text-white font-semibold text-sm flex items-center gap-2">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Start Processing
+            </button>
+            <button id="stopBtn" disabled
+                    class="px-5 py-3 rounded-xl text-white font-semibold text-sm bg-danger hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              Stop
+            </button>
+          </div>
+          <svg viewBox="0 0 96 96" class="w-24 h-24 shrink-0">
+            <defs>
+              <linearGradient id="illusGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#06B6D4"/>
+              </linearGradient>
+            </defs>
+            <circle cx="55" cy="40" r="38" fill="url(#illusGrad)" opacity="0.12"/>
+            <rect x="22" y="18" width="52" height="60" rx="14" fill="url(#illusGrad)"/>
+            <rect x="32" y="34" width="32" height="5" rx="2.5" fill="white" opacity="0.9"/>
+            <rect x="32" y="46" width="24" height="5" rx="2.5" fill="white" opacity="0.7"/>
+            <rect x="32" y="58" width="28" height="5" rx="2.5" fill="white" opacity="0.8"/>
+            <path d="M82 14 L85 20 L91 23 L85 26 L82 32 L79 26 L73 23 L79 20 Z" fill="#EC4899"/>
+            <path d="M14 50 L16 54 L20 56 L16 58 L14 62 L12 58 L8 56 L12 54 Z" fill="#3B82F6"/>
+            <path d="M80 56 L81.5 59 L84.5 60.5 L81.5 62 L80 65 L78.5 62 L75.5 60.5 L78.5 59 Z" fill="#7C3AED"/>
+          </svg>
+        </div>
+
+        <div class="mt-5">
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+              <div id="progressBar" class="progress-fill h-full rounded-full" style="width:0%"></div>
+            </div>
+            <span id="progressPct" class="text-primaryTo font-bold text-sm w-12 text-right shrink-0">0%</span>
+          </div>
+          <div id="progressText" class="text-xs text-slate-500 mt-1.5">0 / 0 files</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mt-5">
+          <div>
+            <div class="text-xs text-slate-500">Current File</div>
+            <div id="currentFile" class="font-bold text-slate-900 mt-0.5">Idle</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500">SEO Score (Current)</div>
+            <div id="scoreBefore" class="font-bold text-slate-900 mt-0.5">-</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500">SEO Score (Updated)</div>
+            <div id="scoreAfter" class="font-bold text-slate-900 mt-0.5">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <div class="grid grid-cols-5 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-secondaryFrom to-secondaryTo flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+            </svg>
+          </div>
+          <div class="min-w-0"><div class="text-xs text-slate-500">Discovered</div><div id="kpiDiscovered" class="text-xl font-bold text-slate-900">0</div></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#22C55E,#16A34A)">
+            <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <div class="min-w-0"><div class="text-xs text-slate-500">Completed</div><div id="kpiCompleted" class="text-xl font-bold text-slate-900">0</div></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#EF4444,#B91C1C)">
+            <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>
+            </svg>
+          </div>
+          <div class="min-w-0"><div class="text-xs text-slate-500">Errors</div><div id="kpiErrors" class="text-xl font-bold text-slate-900">0</div></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primaryFrom to-primaryTo flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/>
+              <rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>
+            </svg>
+          </div>
+          <div class="min-w-0"><div class="text-xs text-slate-500">Tokens</div><div id="kpiTokens" class="text-xl font-bold text-slate-900">0</div></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#F59E0B,#D97706)">
+            <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div class="min-w-0"><div class="text-xs text-slate-500">Est. Cost</div><div id="kpiCost" class="text-xl font-bold text-slate-900">$0.0000</div></div>
+        </div>
+      </div>
+
+      <!-- Results card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+        <div class="flex items-center justify-between p-5 pb-3">
+          <div>
+            <div class="font-bold text-slate-900 flex items-center gap-2">
+              <svg viewBox="0 0 24 24" class="w-4 h-4 text-primaryTo" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 12h6M9 16h6"/></svg>
+              Results
+            </div>
+            <div class="text-xs text-slate-500 mt-0.5">Double-click a row for the detailed report</div>
+          </div>
+          <button id="exportBtn" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            Export
+          </button>
+        </div>
+        <div class="relative px-5 pb-5 min-h-[260px]">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="text-left text-slate-500 border-b border-slate-100">
+                <th class="py-2 font-semibold">File</th>
+                <th class="font-semibold text-center">Status</th>
+                <th class="font-semibold text-center">Score Before</th>
+                <th class="font-semibold text-center">Score After</th>
+                <th class="font-semibold">Focused Keyword</th>
+                <th class="font-semibold text-center">Time Taken</th>
+                <th class="font-semibold text-right">Tokens</th>
+                <th class="font-semibold text-right">Cost</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+          <div id="emptyState" class="flex flex-col items-center justify-center text-center py-12">
+            <svg viewBox="0 0 24 24" class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l2-3h14l2 3M3 7v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7h18M9 12h6"/></svg>
+            <div class="font-bold text-slate-900 mt-3">No results yet</div>
+            <div class="text-slate-500 text-sm mt-1">Scan a folder and start processing to see results here.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log card -->
+      <div class="bg-slate-900 rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-white font-bold flex items-center gap-2 text-sm">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M2 18h20M6 9l3 2-3 2"/></svg>
+            Activity Log
+          </div>
+          <button id="clearLogBtn" class="text-xs text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-lg px-3 py-1 transition">Clear</button>
+        </div>
+        <div id="logBox" class="font-mono-ui text-[13px] text-green-400 h-28 overflow-y-auto leading-6"></div>
+      </div>
+    </main>
+
+    <!-- Status bar -->
+    <footer class="h-8 shrink-0 bg-white border-t border-slate-200 flex items-center justify-between px-4 text-xs text-slate-500">
+      <div class="flex items-center gap-1.5">
+        <span id="statusDot" class="w-2 h-2 rounded-full bg-success"></span>
+        <span id="statusText">Ready</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span>v1.0.0</span>
+        <span class="flex items-center gap-1">
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          Light
+        </span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ============================== DETAIL MODAL ============================== -->
+  <div id="detailModal" class="hidden fixed inset-0 bg-slate-900/40 modal-backdrop flex items-center justify-center z-50 p-6">
+    <div class="bg-white rounded-2xl w-[640px] max-h-[85vh] overflow-y-auto p-6 shadow-2xl">
+      <div class="flex items-start justify-between">
+        <div>
+          <div id="modalFileName" class="text-lg font-bold text-slate-900"></div>
+          <div id="modalFilePath" class="text-xs text-slate-500 mt-0.5 break-all"></div>
+        </div>
+        <button id="closeModalBtn" class="text-slate-400 hover:text-slate-700 transition shrink-0 ml-4">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mt-4 bg-slate-50 rounded-xl border border-slate-200 p-4">
+        <div><div class="text-xs text-slate-500">Status</div><div id="modalStatus" class="font-bold text-slate-900 mt-0.5"></div></div>
+        <div><div class="text-xs text-slate-500">Focus keyword</div><div id="modalKeyword" class="font-bold text-slate-900 mt-0.5"></div></div>
+        <div><div class="text-xs text-slate-500">Time taken</div><div id="modalTime" class="font-bold text-slate-900 mt-0.5"></div></div>
+        <div><div class="text-xs text-slate-500">Tokens consumed</div><div id="modalTokens" class="font-bold text-slate-900 mt-0.5"></div></div>
+        <div><div class="text-xs text-slate-500">Estimated cost</div><div id="modalCost" class="font-bold text-slate-900 mt-0.5"></div></div>
+        <div id="modalErrorRow" class="hidden"><div class="text-xs text-slate-500">Error</div><div id="modalError" class="font-bold text-danger mt-0.5"></div></div>
+      </div>
+
+      <div class="text-primaryTo font-bold text-sm mt-5 mb-2">SEO Score Breakdown</div>
+      <div class="rounded-xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-slate-50 text-slate-500 text-xs">
+            <th class="text-left font-semibold py-2.5 px-4">Category</th>
+            <th class="text-right font-semibold py-2.5 px-4">Before</th>
+            <th class="text-right font-semibold py-2.5 px-4">After</th>
+          </tr></thead>
+          <tbody id="modalBreakdownBody"></tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 space-y-1">
+        <div class="font-bold text-slate-900 text-sm">Overall Before Score: <span id="modalScoreBefore"></span>/100</div>
+        <div class="font-bold text-success text-sm">Overall After Score: <span id="modalScoreAfter"></span>/100</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
